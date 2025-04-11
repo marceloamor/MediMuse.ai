@@ -1,2 +1,2 @@
-portia-sdk-python
+portia-sdk-python[google]
 python-dotenv

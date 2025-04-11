@@ -1,0 +1,23 @@
+{
+    "PatientName": "Jane Doe",
+    "PatientSex": "M",
+    "PatientAge": 81,
+    "PatientWeight": 125,
+    "Haemoglobin": 150,
+    "HBA1C": 48,
+    "Erythrocyte": 8.3,
+    "Neutrophils": 7.3,
+    "TotalCholesterol": 2,
+    "ALT": 18,
+    "Bilirubin": 15,
+    "Calcium": 2.22,
+    "TSH": 2.51,
+    "Magnesium": 0.77,
+    "Estrogen": 210,
+    "FSH": 8,
+    "LH": 4,
+    "Estrodine": 279,
+    "VitaminB12": 903,
+    "Ferritin": 303,
+    "Folate": 18.5
+}

@@ -8,6 +8,7 @@ from portia import (
     example_tool_registry,
 )
 
+
 load_dotenv()
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 

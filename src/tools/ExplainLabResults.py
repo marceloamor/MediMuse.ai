@@ -1,35 +1,18 @@
 import json
 import os
 from typing import Dict, Any
-import google.generativeai as genai
-from dotenv import load_dotenv
-from portia.tools import Tool
+from portia import Tool
 
 class ExplainLabResults(Tool):
-    name = "explain_lab_result"
-    description = "Explains blood test or lab result in plain language and its significance."
+    name: str = "explain_lab_result"
+    description: str = "Explains blood test or lab result in plain language and its significance. Input should be a path to a JSON file containing lab results."
 
     def __init__(self):
-        # Load environment variables
-        load_dotenv()
-        
-        # Configure Gemini API
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
-        
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        super().__init__()
 
     def _parse_lab_results(self, json_file_path: str) -> Dict[str, Any]:
         """
         Parse lab results from JSON file.
-        
-        Args:
-            json_file_path: Path to the JSON file containing lab results
-            
-        Returns:
-            Dictionary containing parsed lab results
         """
         try:
             with open(json_file_path, 'r') as file:
@@ -42,56 +25,43 @@ class ExplainLabResults(Tool):
     def _generate_prompt(self, lab_results: Dict[str, Any]) -> str:
         """
         Generate a prompt for the LLM based on lab results.
-        
-        Args:
-            lab_results: Dictionary containing lab results
-            
-        Returns:
-            Formatted prompt string
         """
-        # Extract relevant information from lab results
-        patient_info = lab_results.get('patient_info', {})
-        tests = lab_results.get('tests', [])
-        
-        # Build prompt
+        # Build patient information section
+        patient_info = f"""
+Patient Information:
+- Name: {lab_results.get('PatientName', 'Not provided')}
+- Age: {lab_results.get('PatientAge', 'Not provided')}
+- Gender: {lab_results.get('PatientSex', 'Not provided')}
+- Weight: {lab_results.get('PatientWeight', 'Not provided')} kg
+"""
+
+        # Build lab results section
+        lab_results_section = "\nLab Results:\n"
+        for test_name, value in lab_results.items():
+            if test_name not in ['PatientName', 'PatientSex', 'PatientAge', 'PatientWeight']:
+                lab_results_section += f"- {test_name}: {value}\n"
+
         prompt = f"""
-        Please explain the following lab results in plain language:
-        
-        Patient Information:
-        - Name: {patient_info.get('name', 'Not provided')}
-        - Age: {patient_info.get('age', 'Not provided')}
-        - Gender: {patient_info.get('gender', 'Not provided')}
-        
-        Lab Results:
-        """
-        
-        for test in tests:
-            prompt += f"""
-        - Test: {test.get('name', 'Unknown')}
-          Result: {test.get('result', 'Not available')}
-          Reference Range: {test.get('reference_range', 'Not available')}
-          Units: {test.get('units', 'Not available')}
-            """
-        
-        prompt += """
-        Please explain:
-        1. What these results mean in simple terms
-        2. Whether any values are outside normal ranges
-        3. What might cause any abnormal values
-        4. Any recommended follow-up actions
-        """
-        
+Please analyze these lab results and provide a comprehensive explanation:
+
+{patient_info}
+{lab_results_section}
+
+Please provide:
+1. A clear explanation of what each test measures and its significance
+2. Analysis of whether any values appear abnormal based on standard medical reference ranges
+3. Potential causes for any abnormal values
+4. Recommended follow-up actions or lifestyle changes
+5. Any health concerns that should be discussed with a healthcare provider
+
+Please use your medical knowledge to interpret these results and provide a detailed, patient-friendly explanation.
+"""
+
         return prompt
 
-    def call(self, input: str) -> str:
+    def run(self, input: str) -> str:
         """
         Process lab results from a JSON file and generate an explanation.
-        
-        Args:
-            input: Path to the JSON file containing lab results
-            
-        Returns:
-            Explanation of the lab results
         """
         try:
             # Parse lab results from JSON file
@@ -100,10 +70,7 @@ class ExplainLabResults(Tool):
             # Generate prompt
             prompt = self._generate_prompt(lab_results)
             
-            # Get response from Gemini
-            response = self.model.generate_content(prompt)
-            
-            return response.text
+            return prompt
             
         except Exception as e:
             return f"Error processing lab results: {str(e)}"

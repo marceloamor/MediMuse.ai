@@ -1,4 +1,4 @@
-# MediMuse.ai - Your AI Health Companion
+# MediMuse.ai - Your AI Health Companion (Dox? Docs? MediDox)
 
 ## Overview
 MediMuse.ai is an AI-powered health agent that serves as a long-term personal coach and counselor, providing deeply personalized health guidance based on your complete health history, habits, and goals. Built using the Portia SDK, our agent offers consistent, empathetic support across healthcare systems.

@@ -8,6 +8,8 @@ from portia import (
     example_tool_registry,
 )
 
+#from tools.ExplainLabResults import ExplainLabResults
+
 load_dotenv()
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 
@@ -20,5 +22,6 @@ google_config = Config.from_default(
 # Instantiate a Portia instance. Load it with the config and with the example tools.
 portia = Portia(config=google_config, tools=example_tool_registry)
 # Run the test query and print the output!
-plan_run = portia.run('add 1 + 2')
+query = 'I have a lab result of 120 mg/dL for cholesterol, and a lab result of 100 mg/dL for HDL cholesterol. What is my cholesterol ratio? What does this mean for me and my health and diet?'
+plan_run = portia.run(query)
 print(plan_run.model_dump_json(indent=2))

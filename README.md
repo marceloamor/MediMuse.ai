@@ -1,18 +1,19 @@
 ## Overview
-MediMuse.ai is an AI-powered health agent that serves as a long-term personal coach and counselor, providing deeply personalized health guidance based on your complete health history, habits, and goals. Built using the Portia SDK, our agent offers consistent, empathetic support across healthcare systems.
+MediMuse.ai is an AI health agent that acts as a long-term personal coach and counselor, delivering deeply personalized guidance based on your medical history, habits, and health goals. Built with the Portia SDK, MediMuse ensures consistent, empathetic, and intelligent support, bridging gaps across fragmented healthcare systems.
 
 ## Why MediMuse.ai?
-- **Fragmented Healthcare**: Patients often struggle with inconsistent care across different healthcare providers and systems
+- **Disconnected Healthcare**: Patients often struggle with inconsistent care across different healthcare providers and systems
 - **Personalized Support**: Our AI agent maintains a comprehensive understanding of your health journey
 - **Empathetic Guidance**: Combines the emotional intelligence of a counselor with the knowledge of a medical professional
 - **24/7 Availability**: Access support whenever you need it, without scheduling constraints
 
 ## Key Features
-- **Lab Results Analysis**: AI-powered interpretation of medical test results
-- **Real-time Analysis**: Streams the agent's thought process during analysis
+- **Lab Results Analysis**: AI-powered interpretation of medical test results with real-time analysis
 - **Interactive Interface**: Clean, modern UI for viewing results and analysis
 - **Secure Data Handling**: Local processing of sensitive health information
 - **Comprehensive Reporting**: Detailed breakdowns of test results and recommendations
+- **Real-time Analysis**: Streams the agent's thought process during analysis
+- **Chat Interface**: Interactive chat for asking questions about your health data
 
 ## Technical Stack
 - **Backend**: FastAPI with Portia SDK
@@ -20,9 +21,7 @@ MediMuse.ai is an AI-powered health agent that serves as a long-term personal co
 - **AI Framework**: Portia SDK with Gemini LLM integration
 - **Data Processing**: JSON-based lab results handling
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 - Python 3.12 or higher
 - Node.js (for serving the frontend)
 - Required API keys:
@@ -30,7 +29,8 @@ MediMuse.ai is an AI-powered health agent that serves as a long-term personal co
   - Portia API Key
   - Tavily API Key
 
-### Environment Setup
+## Installation
+
 1. Clone the repository:
    ```bash
    git clone [repository-url]
@@ -56,7 +56,7 @@ MediMuse.ai is an AI-powered health agent that serves as a long-term personal co
    TAVILY_API_KEY=your_tavily_api_key
    ```
 
-### Running the Application
+## Running the Application
 
 1. Start the FastAPI backend server:
    ```bash
@@ -74,7 +74,7 @@ MediMuse.ai is an AI-powered health agent that serves as a long-term personal co
    - Frontend: http://localhost:3001
    - Backend API: http://localhost:8000
 
-### Project Structure
+## Project Structure
 ```
 MediMuse.ai/
 ├── src/
@@ -90,7 +90,8 @@ MediMuse.ai/
 └── README.md               # Project documentation
 ```
 
-### Using the Application
+## Using the Application
+
 1. **Viewing Lab Results**:
    - The application automatically loads and displays lab results from `src/data/patient_data.json`
    - Results are presented in a clean, tabular format
@@ -105,19 +106,18 @@ MediMuse.ai/
    - Results should be in JSON format matching the structure in `patient_data.json`
 
 ## Development Team
-- [Team Member 1]
-- [Team Member 2]
-- [Team Member 3]
-- [Team Member 4]
-- [Team Member 5]
-- [Team Member 6]
-- [Team Member 7]
+- Marcelo Amorelli
+- Umar Hussain
+- Amir Lajevardi
+- Taro Qureshi
+- Dusan (Sean) Spegar
+- Tharshni Umakanthan
 
 ## Contributing
 We welcome contributions! Please read our contributing guidelines before submitting pull requests.
 
 ## License
-[Specify your license here]
+idk but pls don't steal our code
 
 ## Contact
-For questions or support, please reach out to [contact information]
+For questions or support, please reach out to kornexl9@gmail.com, he may or may not respond but hey worth a shot

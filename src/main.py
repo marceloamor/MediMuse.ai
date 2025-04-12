@@ -160,7 +160,7 @@ async def stream_portia_analysis(lab_results: dict):
     
     try:
         # Create a temporary JSON file with the lab results
-        temp_file = "temp_lab_results.json"
+        temp_file = os.path.join(os.path.dirname(__file__), "temp_lab_results.json")
         logger.info(f"Creating temporary file: {temp_file}")
         
         with open(temp_file, "w") as f:
@@ -201,19 +201,17 @@ async def stream_portia_analysis(lab_results: dict):
                 # Find the output from the lab results tool that contains the LLM analysis
                 analysis_found = False
                 for key, output in run.outputs.step_outputs.items():
-                    if key.startswith("$lab_results_tool"):
-                        # Check if this output contains the LLM analysis
-                        if isinstance(output.value, str) and len(output.value) > 100:  # LLM analysis should be longer
-                            analysis = output.value
-                            logger.info("LLM analysis found in output")
-                            analysis_found = True
-                            
-                            # Stream the analysis in chunks
-                            for chunk in analysis.split('\n'):
-                                logger.info(f"Streaming chunk: {chunk[:50]}...")  # Log first 50 chars of each chunk
-                                yield f"data: {json.dumps({'type': 'analysis', 'content': chunk})}\n\n"
-                                await asyncio.sleep(0.1)
-                            break
+                    if key == "$lab_results_analysis":
+                        analysis = output.value
+                        logger.info("LLM analysis found in output")
+                        analysis_found = True
+                        
+                        # Stream the analysis in chunks
+                        for chunk in analysis.split('\n'):
+                            logger.info(f"Streaming chunk: {chunk[:50]}...")  # Log first 50 chars of each chunk
+                            yield f"data: {json.dumps({'type': 'analysis', 'content': chunk})}\n\n"
+                            await asyncio.sleep(0.1)
+                        break
                 
                 if not analysis_found:
                     error_msg = "No LLM analysis found in the outputs"

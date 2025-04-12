@@ -87,6 +87,104 @@ function displayAnalysis(analysis) {
     }
 }
 
+// Function to add a message to the chat
+function addMessage(content, isUser = false) {
+    const chatFrame = document.getElementById('chat-frame');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `mb-2 p-2 rounded-lg ${isUser ? 'bg-blue-100 ml-auto' : 'bg-gray-100'}`;
+    messageDiv.style.maxWidth = '80%';
+    messageDiv.style.marginLeft = isUser ? 'auto' : '0';
+    messageDiv.textContent = content;
+    chatFrame.appendChild(messageDiv);
+    chatFrame.scrollTop = chatFrame.scrollHeight;
+}
+
+// Function to handle chat messages
+async function handleChatMessage(message) {
+    try {
+        // Get current lab results
+        const labResults = {};
+        const rows = document.querySelectorAll('#lab-results-container tr');
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length === 2) {
+                labResults[cells[0].textContent] = cells[1].textContent;
+            }
+        });
+
+        // Add user message to chat
+        addMessage(message, true);
+
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'mb-2 p-2 bg-gray-100 rounded-lg';
+        loadingDiv.id = 'loading-indicator';
+        loadingDiv.textContent = 'MediMuse is thinking...';
+        document.getElementById('chat-frame').appendChild(loadingDiv);
+
+        // Send message to backend
+        const response = await fetch('http://localhost:8000/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                lab_results: labResults
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let responseContent = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        
+                        if (data.type === 'thought') {
+                            // Update loading indicator with thought
+                            document.getElementById('loading-indicator').textContent = data.content;
+                        } else if (data.type === 'response') {
+                            // Remove loading indicator if it's the first response chunk
+                            if (responseContent === '') {
+                                document.getElementById('loading-indicator').remove();
+                            }
+                            // Add response content
+                            responseContent += data.content + '\n';
+                            addMessage(responseContent.trim());
+                        } else if (data.type === 'error') {
+                            // Remove loading indicator and show error
+                            document.getElementById('loading-indicator').remove();
+                            addMessage(`Error: ${data.content}`);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        addMessage('Sorry, there was an error processing your message. Please try again.');
+    }
+}
+
 // Function to fetch and display patient data
 async function fetchPatientData() {
     try {
@@ -226,29 +324,24 @@ async function analyzeLabResults(data) {
 }
 
 // Event Listeners
-// document.getElementById('import-button').addEventListener('click', function() {
-//     const importText = document.getElementById('import-results').value;
-//     console.log('Imported text:', importText);
-//     // TODO: Add logic to process imported text
-// });
+document.getElementById('import-button').addEventListener('click', function() {
+    const importText = document.getElementById('import-results').value;
+    try {
+        const labResults = JSON.parse(importText);
+        displayLabResults(labResults);
+    } catch (e) {
+        console.error('Error parsing imported results:', e);
+        alert('Invalid JSON format. Please check your input.');
+    }
+});
 
 document.getElementById('send-button').addEventListener('click', function() {
-    const chatInput = document.getElementById('chat-input').value;
-    if (chatInput.trim() === '') return;
+    const chatInput = document.getElementById('chat-input');
+    const message = chatInput.value.trim();
+    if (message === '') return;
 
-    // Display user message
-    const chatFrame = document.getElementById('chat-frame');
-    const userMessageDiv = document.createElement('div');
-    userMessageDiv.className = 'mb-2 p-2 bg-blue-100 rounded text-right';
-    userMessageDiv.textContent = chatInput;
-    chatFrame.appendChild(userMessageDiv);
-    chatFrame.scrollTop = chatFrame.scrollHeight;
-
-    // Clear input
-    document.getElementById('chat-input').value = '';
-
-    // Analyze lab results
-    analyzeLabResults();
+    handleChatMessage(message);
+    chatInput.value = '';
 });
 
 document.getElementById('login-button').addEventListener('click', function() {

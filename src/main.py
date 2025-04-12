@@ -239,6 +239,115 @@ async def stream_portia_analysis(lab_results: dict):
             os.remove(temp_file)
             logger.info("Temporary file removed")
 
+@app.post("/chat")
+async def chat(request: Request):
+    """Endpoint to handle chat messages with the Portia agent."""
+    try:
+        logger.info("Received chat request")
+        data = await request.json()
+        message = data.get("message")
+        lab_results = data.get("lab_results", {})
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="Message is required")
+            
+        logger.info(f"Processing chat message: {message}")
+        logger.info(f"Lab results: {lab_results}")
+        
+        return StreamingResponse(
+            stream_portia_response(message, lab_results),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def stream_portia_response(message: str, lab_results: dict):
+    """Stream the Portia agent's response to a chat message."""
+    logger.info("Starting Portia response...")
+    
+    try:
+        # Create a temporary JSON file with the lab results
+        temp_file = "temp_lab_results.json"
+        logger.info(f"Creating temporary file: {temp_file}")
+        
+        with open(temp_file, "w") as f:
+            json.dump(lab_results, f)
+            logger.info("Temporary file created successfully")
+
+        # Plan the response
+        logger.info("Planning response with Portia...")
+        plan = portia.plan(
+            f"Analyze the lab results from {temp_file} and respond to the following message: {message}. "
+            "Provide a comprehensive response that takes into account the lab results and the user's question. "
+            "If the message is about specific test results, focus on those tests. "
+            "If it's a general health question, provide relevant information based on the lab results."
+        )
+        logger.info(f"Plan created with {len(plan.steps)} steps")
+
+        # Stream the plan steps
+        for step in plan.steps:
+            step_info = f"Planning step: {step.task}"
+            logger.info(step_info)
+            yield f"data: {json.dumps({'type': 'thought', 'content': step_info})}\n\n"
+            await asyncio.sleep(0.1)
+
+        # Run the plan and stream the results
+        logger.info("Executing plan...")
+        run = portia.run_plan(plan)
+        
+        if run.state == PlanRunState.COMPLETE:
+            logger.info("Plan execution completed successfully")
+            # Get the response
+            if run.outputs.step_outputs:
+                # Debug logging to see all available outputs
+                logger.info("Available step outputs:")
+                for key, output in run.outputs.step_outputs.items():
+                    logger.info(f"Key: {key}")
+                    logger.info(f"Output type: {type(output)}")
+                    logger.info(f"Output value: {output.value[:200]}...")  # First 200 chars
+                
+                # Find the output from the lab results tool that contains the LLM analysis
+                response_found = False
+                for key, output in run.outputs.step_outputs.items():
+                    if key.startswith("$lab_results_tool"):
+                        # Check if this output contains the LLM analysis
+                        if isinstance(output.value, str) and len(output.value) > 100:  # LLM analysis should be longer
+                            response = output.value
+                            logger.info("LLM response found in output")
+                            response_found = True
+                            
+                            # Stream the response in chunks
+                            for chunk in response.split('\n'):
+                                logger.info(f"Streaming chunk: {chunk[:50]}...")  # Log first 50 chars of each chunk
+                                yield f"data: {json.dumps({'type': 'response', 'content': chunk})}\n\n"
+                                await asyncio.sleep(0.1)
+                            break
+                
+                if not response_found:
+                    error_msg = "No LLM response found in the outputs"
+                    logger.error(error_msg)
+                    yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+            else:
+                error_msg = "No response found"
+                logger.error(error_msg)
+                yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+        else:
+            error_msg = f"Response generation failed with state: {run.state}"
+            logger.error(error_msg)
+            yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+
+    except Exception as e:
+        error_msg = f"Error during response generation: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+    finally:
+        # Clean up the temporary file
+        if os.path.exists(temp_file):
+            logger.info(f"Cleaning up temporary file: {temp_file}")
+            os.remove(temp_file)
+            logger.info("Temporary file removed")
+
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting server on http://0.0.0.0:8000")

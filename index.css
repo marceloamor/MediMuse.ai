@@ -8,3 +8,8 @@ body {
 h1 {
     color: #333;
 }
+
+/* Example Tailwind CSS integration */
+.bg-light {
+    background-color: #f8f9fa;
+}

@@ -16,7 +16,16 @@ from portia.cli import CLIExecutionHooks
 from portia.open_source_tools.local_file_reader_tool import FileReaderTool
 from portia.open_source_tools.llm_tool import LLMTool
 from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+import json
+import asyncio
+import logging
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -27,6 +36,18 @@ TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
 
 if not all([GOOGLE_API_KEY, PORTIA_API_KEY, TAVILY_API_KEY]):
     raise ValueError("Missing required API keys in environment variables")
+
+# Initialize FastAPI app
+app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class LabResultsToolSchema(BaseModel):
     """Input for LabResultsTool."""
@@ -109,43 +130,116 @@ portia = Portia(
     execution_hooks=CLIExecutionHooks(),
 )
 
-# Example usage
-if __name__ == "__main__":
-    with execution_context(
-        end_user_id="lab-results-analyzer",
-    ):
-        # Plan and run the analysis
+@app.post("/analyze-lab-results")
+async def analyze_lab_results(request: Request, lab_results: dict):
+    """Endpoint to analyze lab results using the Portia agent."""
+    try:
+        logger.info("Received request to analyze lab results")
+        logger.info(f"Request body: {lab_results}")
+        
+        # Validate the lab results
+        if not lab_results:
+            logger.error("Empty lab results received")
+            raise HTTPException(status_code=400, detail="Lab results data is required")
+            
+        # Log the request headers for debugging
+        logger.info(f"Request headers: {dict(request.headers)}")
+        
+        return StreamingResponse(
+            stream_portia_analysis(lab_results),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Error in analyze_lab_results endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def stream_portia_analysis(lab_results: dict):
+    """Stream the Portia agent's analysis of lab results."""
+    logger.info("Starting Portia analysis...")
+    logger.info(f"Lab results received: {lab_results}")
+    
+    try:
+        # Create a temporary JSON file with the lab results
+        temp_file = "temp_lab_results.json"
+        logger.info(f"Creating temporary file: {temp_file}")
+        
+        with open(temp_file, "w") as f:
+            json.dump(lab_results, f)
+            logger.info("Temporary file created successfully")
+
+        # Plan the analysis
+        logger.info("Planning analysis with Portia...")
         plan = portia.plan(
-            "Analyze the lab results from src/data/patient_data.json and provide a comprehensive explanation. "
+            f"Analyze the lab results from {temp_file} and provide a comprehensive explanation. "
             "If any of the values suggest a specific health issue, please diagnose it and suggest next steps "
             "to bring up with a professional health care provider."
         )
-        
-        print("\nHere are the steps in the generated plan:")
-        [print(step.model_dump_json(indent=2)) for step in plan.steps]
+        logger.info(f"Plan created with {len(plan.steps)} steps")
 
-        if os.getenv("CI") != "true":
-            user_input = input("Are you happy with the plan? (y/n):\n")
-            if user_input != "y":
-                exit(1)
+        # Stream the plan steps
+        for step in plan.steps:
+            step_info = f"Planning step: {step.task}"
+            logger.info(step_info)
+            yield f"data: {json.dumps({'type': 'thought', 'content': step_info})}\n\n"
+            await asyncio.sleep(0.1)
 
+        # Run the plan and stream the results
+        logger.info("Executing plan...")
         run = portia.run_plan(plan)
         
         if run.state == PlanRunState.COMPLETE:
-            # Print available keys to help debug
-            print("\nAvailable output keys:")
-            for key in run.outputs.step_outputs.keys():
-                print(f"- {key}")
-            
-            # Try to get the lab results analysis from the first available output
+            logger.info("Plan execution completed successfully")
+            # Get the analysis results
             if run.outputs.step_outputs:
-                first_key = next(iter(run.outputs.step_outputs))
-                lab_results = run.outputs.step_outputs[first_key].value
-                print("\nLab Results Analysis:")
-                print(lab_results)
+                # Debug logging to see all available outputs
+                logger.info("Available step outputs:")
+                for key, output in run.outputs.step_outputs.items():
+                    logger.info(f"Key: {key}")
+                    logger.info(f"Output type: {type(output)}")
+                    logger.info(f"Output value: {output.value[:200]}...")  # First 200 chars
+                
+                # Find the output from the lab results tool that contains the LLM analysis
+                analysis_found = False
+                for key, output in run.outputs.step_outputs.items():
+                    if key.startswith("$lab_results_tool"):
+                        # Check if this output contains the LLM analysis
+                        if isinstance(output.value, str) and len(output.value) > 100:  # LLM analysis should be longer
+                            analysis = output.value
+                            logger.info("LLM analysis found in output")
+                            analysis_found = True
+                            
+                            # Stream the analysis in chunks
+                            for chunk in analysis.split('\n'):
+                                logger.info(f"Streaming chunk: {chunk[:50]}...")  # Log first 50 chars of each chunk
+                                yield f"data: {json.dumps({'type': 'analysis', 'content': chunk})}\n\n"
+                                await asyncio.sleep(0.1)
+                            break
+                
+                if not analysis_found:
+                    error_msg = "No LLM analysis found in the outputs"
+                    logger.error(error_msg)
+                    yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
             else:
-                print("No outputs found in the plan run")
+                error_msg = "No analysis results found"
+                logger.error(error_msg)
+                yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
         else:
-            raise Exception(
-                f"Plan run failed with state {run.state}. Check logs for details."
-            )
+            error_msg = f"Analysis failed with state: {run.state}"
+            logger.error(error_msg)
+            yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+
+    except Exception as e:
+        error_msg = f"Error during analysis: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
+    finally:
+        # Clean up the temporary file
+        if os.path.exists(temp_file):
+            logger.info(f"Cleaning up temporary file: {temp_file}")
+            os.remove(temp_file)
+            logger.info("Temporary file removed")
+
+if __name__ == "__main__":
+    import uvicorn
+    logger.info("Starting server on http://0.0.0.0:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -10,44 +10,87 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
 </head>
-<body class="container">
-    <div class="flex justify-end">
-        <div class="text-2xl font-bold">MediMuse</div>
+<body class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <div class="text-3xl font-bold text-blue-600">MediMuse</div>
+        <div class="text-sm text-gray-500">Your AI Health Assistant</div>
     </div>
 
-    <div class="mb-4" id="login-container">
-        <h2>Login</h2>
-        <div class="mb-2">
-            <label for="username">Username:</label>
-            <input type="text" id="username" class="border p-2">
-        </div>
-        <div class="mb-2">
-            <label for="password">Password:</label>
-            <input type="password" id="password" class="border p-2">
-        </div>
-        <button id="login-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Login</button>
-    </div>
-
-    <div class="mb-4" id="lab-results-section" style="display:none;">
-        <h2>Lab Results</h2>
-        <div id="lab-results-container" class="border p-2">
-            <!-- Lab results will be displayed here -->
+    <div class="mb-6" id="login-container">
+        <h2 class="text-xl font-semibold mb-4">Login</h2>
+        <div class="max-w-md">
+            <div class="mb-4">
+                <label for="username" class="block text-gray-700 mb-2">Username:</label>
+                <input type="text" id="username" class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="password" class="block text-gray-700 mb-2">Password:</label>
+                <input type="password" id="password" class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button id="login-button" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                Login
+            </button>
         </div>
     </div>
 
-    <div class="mb-4">
-        <h2>Import Results</h2>
-        <textarea id="import-results" class="border p-2 w-full" rows="5"></textarea>
-        <button id="import-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Import</button>
-    </div>
-
-    <div>
-        <h2>Chat Frame</h2>
-        <div id="chat-frame" class="border p-2 h-40 overflow-y-scroll">
-            <!-- Chat messages will be displayed here -->
+    <div id="main-content" style="display: none;">
+        <div class="mb-6" id="lab-results-section">
+            <h2 class="text-xl font-semibold mb-4">Lab Results</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test Name</th>
+                            <th class="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lab-results-container" class="divide-y divide-gray-200">
+                        <!-- Lab results will be displayed here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4">
+                <button id="analyze-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                    Analyze Results
+                </button>
+            </div>
         </div>
-        <input type="text" id="chat-input" class="border p-2 w-full rounded-md" placeholder="Ask me anything about your health!">
-        <button id="send-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
+
+        <div class="mb-6" id="analysis-section" style="display: none;">
+            <h2 class="text-xl font-semibold mb-4">Analysis</h2>
+            <div id="streaming-container" class="bg-gray-50 border border-gray-200 rounded-lg shadow p-4 mb-4">
+                <h3 class="text-sm font-semibold text-gray-600 mb-2">Agent's Thought Process:</h3>
+                <div id="streaming-content" class="text-sm text-gray-700 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
+            </div>
+            <div id="analysis-container" class="bg-white border border-gray-200 rounded-lg shadow p-6">
+                <div class="text-center py-4">Analysis results will appear here...</div>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-4">Import Results</h2>
+            <div class="max-w-2xl">
+                <textarea id="import-results" class="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="5" placeholder="Paste your lab results here..."></textarea>
+                <button id="import-button" class="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                    Import
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-4">Chat with MediMuse</h2>
+            <div class="max-w-2xl">
+                <div id="chat-frame" class="border rounded p-4 h-64 overflow-y-auto bg-gray-50 mb-4">
+                    <!-- Chat messages will be displayed here -->
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" class="flex-1 border rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ask me anything about your health!">
+                    <button id="send-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="index.js"></script>

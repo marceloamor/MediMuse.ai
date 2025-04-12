@@ -11,8 +11,32 @@
     <link rel="stylesheet" href="index.css">
 </head>
 <body class="container">
-    <h1>Welcome to MediMuse</h1>
-    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <div class="flex justify-end">
+        <div class="text-2xl font-bold">MediMuse</div>
+    </div>
+
+    <div class="mb-4">
+        <h2>Lab Results</h2>
+        <div id="lab-results-container" class="border p-2">
+            <!-- Lab results will be displayed here -->
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h2>Import Text</h2>
+        <textarea id="import-text" class="border p-2 w-full" rows="5"></textarea>
+        <button id="import-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Import</button>
+    </div>
+
+    <div>
+        <h2>Chat Frame</h2>
+        <div id="chat-frame" class="border p-2 h-40 overflow-y-scroll">
+            <!-- Chat messages will be displayed here -->
+        </div>
+        <input type="text" id="chat-input" class="border p-2 w-full" placeholder="Type your message...">
+        <button id="send-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
+    </div>
+
     <script src="index.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

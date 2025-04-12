@@ -109,6 +109,11 @@ class LabResultsTool(Tool[str]):
         except Exception as e:
             return f"Error processing lab results: {str(e)}"
 
+class ChatMessage(BaseModel):
+    """Schema for chat messages."""
+    message: str = Field(..., description="The user's message")
+    lab_results: dict | None = Field(None, description="Optional lab results to analyze")
+
 # Configure Portia with all API keys
 config = Config.from_default(
     llm_model_name=LLMModel.GEMINI_2_0_FLASH,
@@ -130,49 +135,26 @@ portia = Portia(
     execution_hooks=CLIExecutionHooks(),
 )
 
-@app.post("/analyze-lab-results")
-async def analyze_lab_results(request: Request, lab_results: dict):
-    """Endpoint to analyze lab results using the Portia agent."""
-    try:
-        logger.info("Received request to analyze lab results")
-        logger.info(f"Request body: {lab_results}")
-        
-        # Validate the lab results
-        if not lab_results:
-            logger.error("Empty lab results received")
-            raise HTTPException(status_code=400, detail="Lab results data is required")
-            
-        # Log the request headers for debugging
-        logger.info(f"Request headers: {dict(request.headers)}")
-        
-        return StreamingResponse(
-            stream_portia_analysis(lab_results),
-            media_type="text/event-stream"
-        )
-    except Exception as e:
-        logger.error(f"Error in analyze_lab_results endpoint: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-async def stream_portia_analysis(lab_results: dict):
-    """Stream the Portia agent's analysis of lab results."""
-    logger.info("Starting Portia analysis...")
-    logger.info(f"Lab results received: {lab_results}")
+async def stream_portia_response(message: str, lab_results: dict | None = None):
+    """Stream the Portia agent's response to a chat message."""
+    logger.info(f"Processing message: {message}")
+    if lab_results:
+        logger.info("Lab results provided for analysis")
     
     try:
-        # Create a temporary JSON file with the lab results
-        temp_file = "temp_lab_results.json"
-        logger.info(f"Creating temporary file: {temp_file}")
-        
-        with open(temp_file, "w") as f:
-            json.dump(lab_results, f)
-            logger.info("Temporary file created successfully")
+        # Create a temporary JSON file if lab results are provided
+        temp_file = None
+        if lab_results:
+            temp_file = "temp_lab_results.json"
+            with open(temp_file, "w") as f:
+                json.dump(lab_results, f)
+            logger.info(f"Created temporary file: {temp_file}")
 
-        # Plan the analysis
-        logger.info("Planning analysis with Portia...")
+        # Plan the response
+        logger.info("Planning response with Portia...")
         plan = portia.plan(
-            f"Analyze the lab results from {temp_file} and provide a comprehensive explanation. "
-            "If any of the values suggest a specific health issue, please diagnose it and suggest next steps "
-            "to bring up with a professional health care provider."
+            f"Respond to the following message: {message}" + 
+            (f" Use the lab results from {temp_file} if relevant to the query." if temp_file else "")
         )
         logger.info(f"Plan created with {len(plan.steps)} steps")
 
@@ -189,55 +171,62 @@ async def stream_portia_analysis(lab_results: dict):
         
         if run.state == PlanRunState.COMPLETE:
             logger.info("Plan execution completed successfully")
-            # Get the analysis results
             if run.outputs.step_outputs:
-                # Debug logging to see all available outputs
-                logger.info("Available step outputs:")
+                # Find the output containing the response
+                response_found = False
                 for key, output in run.outputs.step_outputs.items():
-                    logger.info(f"Key: {key}")
-                    logger.info(f"Output type: {type(output)}")
-                    logger.info(f"Output value: {output.value[:200]}...")  # First 200 chars
+                    if isinstance(output.value, str) and len(output.value) > 0:
+                        response = output.value
+                        logger.info("Response found in output")
+                        response_found = True
+                        
+                        # Stream the response in chunks
+                        for chunk in response.split('\n'):
+                            logger.info(f"Streaming chunk: {chunk[:50]}...")
+                            yield f"data: {json.dumps({'type': 'response', 'content': chunk})}\n\n"
+                            await asyncio.sleep(0.1)
+                        break
                 
-                # Find the output from the lab results tool that contains the LLM analysis
-                analysis_found = False
-                for key, output in run.outputs.step_outputs.items():
-                    if key.startswith("$lab_results_tool"):
-                        # Check if this output contains the LLM analysis
-                        if isinstance(output.value, str) and len(output.value) > 100:  # LLM analysis should be longer
-                            analysis = output.value
-                            logger.info("LLM analysis found in output")
-                            analysis_found = True
-                            
-                            # Stream the analysis in chunks
-                            for chunk in analysis.split('\n'):
-                                logger.info(f"Streaming chunk: {chunk[:50]}...")  # Log first 50 chars of each chunk
-                                yield f"data: {json.dumps({'type': 'analysis', 'content': chunk})}\n\n"
-                                await asyncio.sleep(0.1)
-                            break
-                
-                if not analysis_found:
-                    error_msg = "No LLM analysis found in the outputs"
+                if not response_found:
+                    error_msg = "No response found in the outputs"
                     logger.error(error_msg)
                     yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
             else:
-                error_msg = "No analysis results found"
+                error_msg = "No response found"
                 logger.error(error_msg)
                 yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
         else:
-            error_msg = f"Analysis failed with state: {run.state}"
+            error_msg = f"Response generation failed with state: {run.state}"
             logger.error(error_msg)
             yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
 
     except Exception as e:
-        error_msg = f"Error during analysis: {str(e)}"
+        error_msg = f"Error during response generation: {str(e)}"
         logger.error(error_msg, exc_info=True)
         yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
     finally:
         # Clean up the temporary file
-        if os.path.exists(temp_file):
+        if temp_file and os.path.exists(temp_file):
             logger.info(f"Cleaning up temporary file: {temp_file}")
             os.remove(temp_file)
             logger.info("Temporary file removed")
+
+@app.post("/chat")
+async def chat(request: Request, chat_message: ChatMessage):
+    """Endpoint to handle chat messages."""
+    try:
+        logger.info("Received chat message")
+        logger.info(f"Message: {chat_message.message}")
+        if chat_message.lab_results:
+            logger.info("Lab results provided")
+            
+        return StreamingResponse(
+            stream_portia_response(chat_message.message, chat_message.lab_results),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,6 +1,4 @@
 import os
-import json
-from typing import Dict, Any
 from dotenv import load_dotenv
 from portia import (
     Config,
@@ -15,6 +13,8 @@ from portia import (
     execution_context,
 )
 from portia.cli import CLIExecutionHooks
+from portia.open_source_tools.local_file_reader_tool import FileReaderTool
+from portia.open_source_tools.llm_tool import LLMTool
 from pydantic import BaseModel, Field
 
 
@@ -47,63 +47,43 @@ class LabResultsTool(Tool[str]):
         "A detailed explanation of the lab results.",
     )
 
-    def _parse_lab_results(self, json_file_path: str) -> Dict[str, Any]:
-        """Parse lab results from JSON file."""
-        try:
-            with open(json_file_path, 'r') as file:
-                return json.load(file)
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Lab results file not found: {json_file_path}")
-        except json.JSONDecodeError:
-            raise ValueError(f"Invalid JSON format in file: {json_file_path}")
-
-    def _generate_prompt(self, lab_results: Dict[str, Any]) -> str:
-        """Generate a prompt for the LLM based on lab results."""
-        # Build patient information section
-        patient_info = f"""
-Patient Information:
-- Name: {lab_results.get('PatientName', 'Not provided')}
-- Age: {lab_results.get('PatientAge', 'Not provided')}
-- Gender: {lab_results.get('PatientSex', 'Not provided')}
-- Weight: {lab_results.get('PatientWeight', 'Not provided')} kg
-"""
-
-        # Build lab results section
-        lab_results_section = "\nLab Results:\n"
-        for test_name, value in lab_results.items():
-            if test_name not in ['PatientName', 'PatientSex', 'PatientAge', 'PatientWeight']:
-                lab_results_section += f"- {test_name}: {value}\n"
-
-        prompt = f"""
-Please analyze these lab results and provide a comprehensive explanation:
-
-{patient_info}
-{lab_results_section}
-
-Please provide:
-1. A clear explanation of what each test measures and its significance
-2. Analysis of whether any values appear abnormal based on standard medical reference ranges
-3. Potential causes for any abnormal values
-4. Recommended follow-up actions or lifestyle changes
-5. Any health concerns that should be discussed with a healthcare provider
-
-Please use your medical knowledge to interpret these results and provide a detailed, patient-friendly explanation.
-"""
-
-        return prompt
-
-    def run(self, _: ExecutionContext, json_file_path: str) -> str:
+    def run(self, context: ExecutionContext, json_file_path: str) -> str:
         """Run the Lab Results Tool."""
         try:
-            #  hard code the json file path for now 
-            json_file_path = "src/data/patient_data.json"
-            # Parse lab results from JSON file
-            lab_results = self._parse_lab_results(json_file_path)
+            # Create instances of the tools
+            file_reader = FileReaderTool()
+            llm_tool = LLMTool()
             
-            # Generate prompt
-            prompt = self._generate_prompt(lab_results)
+            # Read the lab results file
+            lab_results = file_reader.run(context, json_file_path)
             
-            return prompt
+            # Create prompt for LLM analysis
+            prompt = f"""
+            You are a medical professional analyzing lab test results. Please analyze these results:
+
+            {lab_results}
+
+            Please provide a comprehensive analysis that includes:
+            1. A clear explanation of what each test measures and its significance
+            2. Analysis of whether any values appear abnormal based on standard medical reference ranges
+            3. Potential causes for any abnormal values
+            4. Recommended follow-up actions or lifestyle changes
+            5. Any health concerns that should be discussed with a healthcare provider
+
+            Write in clear, patient-friendly language while maintaining medical accuracy.
+            Format your response as a detailed medical report with sections for:
+            - Overview
+            - Test-by-test analysis
+            - Abnormal findings
+            - Recommendations
+            - Follow-up actions
+
+            Do not include any introductory phrases like "I will analyze" - just provide the analysis directly.
+            """
+            
+            # Get LLM analysis
+            analysis = llm_tool.run(context, prompt)
+            return analysis
             
         except Exception as e:
             return f"Error processing lab results: {str(e)}"
@@ -136,7 +116,9 @@ if __name__ == "__main__":
     ):
         # Plan and run the analysis
         plan = portia.plan(
-            "Analyze the lab results from the patient data file and provide a comprehensive explanation. If any of the values suggest a specific health issue, please diagnose it and suggest next steps to bring up with a professional health care provider."
+            "Analyze the lab results from src/data/patient_data.json and provide a comprehensive explanation. "
+            "If any of the values suggest a specific health issue, please diagnose it and suggest next steps "
+            "to bring up with a professional health care provider."
         )
         
         print("\nHere are the steps in the generated plan:")
@@ -148,8 +130,13 @@ if __name__ == "__main__":
                 exit(1)
 
         run = portia.run_plan(plan)
-
-        if run.state != PlanRunState.COMPLETE:
+        
+        if run.state == PlanRunState.COMPLETE:
+            # Get the lab results analysis from the step outputs
+            lab_results = run.outputs.step_outputs["$lab_results_analysis"].value
+            print("\nLab Results Analysis:")
+            print(lab_results)
+        else:
             raise Exception(
                 f"Plan run failed with state {run.state}. Check logs for details."
             )

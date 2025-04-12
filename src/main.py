@@ -17,6 +17,7 @@ from portia import (
 from portia.cli import CLIExecutionHooks
 from pydantic import BaseModel, Field
 
+
 load_dotenv()
 
 # Load API keys from environment

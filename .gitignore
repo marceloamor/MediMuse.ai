@@ -1,2 +1,6 @@
-/.venv
-/.env
+.venv
+.env
+Pipfile
+Pipfile.lock
+env
+demo_runs

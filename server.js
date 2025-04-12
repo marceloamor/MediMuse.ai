@@ -1,15 +1,32 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process'); // Import child_process to run Python
 
 const server = http.createServer((req, res) => {
+  // Route for running Python script
+  if (req.url === '/run-python') {
+    exec('python3 LockerVault.py', (error, stdout, stderr) => {
+      if (error) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end(`Python error:\n${stderr}`);
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(stdout);
+    });
+    return; // Stop further processing
+  }
+
+  // Serve static files (HTML, JS, etc.)
   let filePath = '.' + req.url;
-  if (filePath == './') {
+  if (filePath === './') {
     filePath = './index.html';
   }
 
   const extname = path.extname(filePath);
   let contentType = 'text/html';
+
   switch (extname) {
     case '.js':
       contentType = 'text/javascript';
@@ -34,7 +51,7 @@ const server = http.createServer((req, res) => {
 
   fs.readFile(filePath, (error, content) => {
     if (error) {
-      if (error.code == 'ENOENT') {
+      if (error.code === 'ENOENT') {
         res.writeHead(404);
         res.end('404 Not Found');
       } else {
@@ -46,7 +63,6 @@ const server = http.createServer((req, res) => {
       res.end(content, 'utf-8');
     }
   });
-
 });
 
 const PORT = 3000;

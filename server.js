@@ -5,7 +5,7 @@ const path = require('path');
 const server = http.createServer((req, res) => {
   let filePath = '.' + req.url;
   if (filePath === '/') {
-    filePath = 'index.html';
+    filePath = './index.html';
   } else if (req.url.startsWith('/src/data/')) {
     filePath = '.' + req.url;
   }
@@ -34,11 +34,14 @@ const server = http.createServer((req, res) => {
       break;
   }
 
-  fs.readFile(filePath, (error, content) => {
+  console.log("Filepath:", filePath); fs.readFile(path.join(__dirname, filePath), (error, content) => {
     if (error) {
       if (error.code == 'ENOENT') {
         res.writeHead(404);
         res.end('404 Not Found');
+      } else if (error.code === 'EISDIR') {
+        res.writeHead(403);
+        res.end('403 Forbidden: Directory listing not allowed');
       } else {
         res.writeHead(500);
         res.end('500 Internal Server Error: ' + error.code);
@@ -51,7 +54,7 @@ const server = http.createServer((req, res) => {
 
 });
 
-const PORT = 3000;
+const PORT = 3001;
 
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}/`);

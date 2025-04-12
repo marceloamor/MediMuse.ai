@@ -226,11 +226,11 @@ async function analyzeLabResults(data) {
 }
 
 // Event Listeners
-document.getElementById('import-button').addEventListener('click', function() {
-    const importText = document.getElementById('import-results').value;
-    console.log('Imported text:', importText);
-    // TODO: Add logic to process imported text
-});
+// document.getElementById('import-button').addEventListener('click', function() {
+//     const importText = document.getElementById('import-results').value;
+//     console.log('Imported text:', importText);
+//     // TODO: Add logic to process imported text
+// });
 
 document.getElementById('send-button').addEventListener('click', function() {
     const chatInput = document.getElementById('chat-input').value;

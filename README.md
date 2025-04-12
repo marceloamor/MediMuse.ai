@@ -15,6 +15,7 @@ MediMuse.ai is an AI health agent that acts as a long-term personal coach and co
 - **Real-time Analysis**: Streams the agent's thought process during analysis
 - **Chat Interface**: Interactive chat for asking questions about your health data
 
+
 ## Technical Stack
 - **Backend**: FastAPI with Portia SDK
 - **Frontend**: HTML, JavaScript, Bootstrap, and Tailwind CSS

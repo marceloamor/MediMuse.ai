@@ -1,0 +1,23 @@
+{
+  "PatientName": "John Doe",
+  "PatientSex": "M",
+  "PatientAge": 82,
+  "PatientWeight": 121,
+  "Haemoglobin": 142,
+  "HBA1C": 52,
+  "Erythrocyte": 7.8,
+  "Neutrophils": 7.9,
+  "TotalCholesterol": 2.5,
+  "ALT": 24,
+  "Bilirubin": 17,
+  "Calcium": 2.18,
+  "TSH": 2.95,
+  "Magnesium": 0.72,
+  "Estrogen": 195,
+  "FSH": 9.2,
+  "LH": 4.8,
+  "Estrodine": 260,
+  "VitaminB12": 842,
+  "Ferritin": 275,
+  "Folate": 15.7
+}

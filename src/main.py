@@ -132,10 +132,19 @@ if __name__ == "__main__":
         run = portia.run_plan(plan)
         
         if run.state == PlanRunState.COMPLETE:
-            # Get the lab results analysis from the step outputs
-            lab_results = run.outputs.step_outputs["$lab_results_analysis"].value
-            print("\nLab Results Analysis:")
-            print(lab_results)
+            # Print available keys to help debug
+            print("\nAvailable output keys:")
+            for key in run.outputs.step_outputs.keys():
+                print(f"- {key}")
+            
+            # Try to get the lab results analysis from the first available output
+            if run.outputs.step_outputs:
+                first_key = next(iter(run.outputs.step_outputs))
+                lab_results = run.outputs.step_outputs[first_key].value
+                print("\nLab Results Analysis:")
+                print(lab_results)
+            else:
+                print("No outputs found in the plan run")
         else:
             raise Exception(
                 f"Plan run failed with state {run.state}. Check logs for details."

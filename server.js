@@ -4,8 +4,10 @@ const path = require('path');
 
 const server = http.createServer((req, res) => {
   let filePath = '.' + req.url;
-  if (filePath == './') {
-    filePath = './index.html';
+  if (filePath === '/') {
+    filePath = 'index.html';
+  } else if (req.url.startsWith('/src/data/')) {
+    filePath = '.' + req.url;
   }
 
   const extname = path.extname(filePath);

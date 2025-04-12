@@ -12,3 +12,33 @@ document.getElementById('send-button').addEventListener('click', function() {
     // You can add your logic here to send the chat message
     document.getElementById('chat-input').value = ''; // Clear the input
 });
+
+fetch('src/data/patient_data.json')
+    .then(response => response.json())
+    .then(data => {
+        const labResultsContainer = document.getElementById('lab-results-container');
+        if (!labResultsContainer) {
+            console.error('Lab results container not found in index.html');
+            return;
+        }
+
+        for (const key in data) {
+            if (data.hasOwnProperty(key)) {
+                const value = data[key];
+
+                const resultContainer = document.createElement('div');
+                resultContainer.id = key;
+
+                const label = document.createElement('label');
+                label.textContent = key + ": ";
+                resultContainer.appendChild(label);
+
+                const valueElement = document.createElement('p');
+                valueElement.textContent = value;
+                resultContainer.appendChild(valueElement);
+
+                labResultsContainer.appendChild(resultContainer);
+            }
+        }
+    })
+    .catch(error => console.error('Error fetching patient data:', error));

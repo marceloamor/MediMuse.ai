@@ -26,8 +26,12 @@ document.getElementById('login-button').addEventListener('click', function() {
     }
 });
 
-fetch('src/data/patient_data.json')
-    .then(response => response.json())
+console.log("Fetching patient data...");
+fetch('/src/data/patient_data.json')
+    .then(response => {
+        console.log("Patient data response:", response);
+        return response.json();
+    })
     .then(data => {
         const labResultsContainer = document.getElementById('lab-results-container');
         if (!labResultsContainer) {
@@ -56,35 +60,6 @@ fetch('src/data/patient_data.json')
                 labResultsContainer.appendChild(resultContainer);
             }
         }
-    })
-    .catch(error => console.error('Error fetching patient data:', error));
-
-fetch('src/data/patient_data.json')
-    .then(response => response.json())
-    .then(data => {
-        const labResultsContainer = document.getElementById('lab-results-container');
-        if (!labResultsContainer) {
-            console.error('Lab results container not found in index.html');
-            return;
-        }
-
-        for (const key in data) {
-            if (data.hasOwnProperty(key)) {
-                const value = data[key];
-
-                const resultContainer = document.createElement('div');
-                resultContainer.id = key;
-
-                const label = document.createElement('label');
-                label.textContent = key + ": ";
-                resultContainer.appendChild(label);
-
-                const valueElement = document.createElement('p');
-                valueElement.textContent = value;
-                resultContainer.appendChild(valueElement);
-
-                labResultsContainer.appendChild(resultContainer);
-            }
-        }
+        console.log("Patient data displayed successfully.");
     })
     .catch(error => console.error('Error fetching patient data:', error));
